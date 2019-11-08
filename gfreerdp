@@ -60,167 +60,166 @@ proc screen {} {
 
 proc hostnamechange {} {
 
-global hostname usrname passwd mapIpToUsrname
-puts "hostnamechange,hostname:$hostname"
+    global hostname usrname passwd mapIpToUsrname
+    puts "hostnamechange,hostname:$hostname"
 
-if { [dict exist $mapIpToUsrname $hostname] } {
+    if { [dict exist $mapIpToUsrname $hostname] } {
 
-   set value [dict get $mapIpToUsrname $hostname]
+          set value [dict get $mapIpToUsrname $hostname]
 
-   if { [string len $value] > 0 } {
-    
-     .top.username delete 0 [string len $usrname]
-     .top.username insert 0 $value
+          if { [string len $value] > 0 } {
+          
+          .top.username delete 0 [string len $usrname]
+          .top.username insert 0 $value
 
-     focus .top.passwd
+          focus .top.passwd
 
-   }
- }  
+          }
+    }  
 }
 
 
 
 
 proc connect {} {
-  global commandctl hostname usrname passwd mapIpToUsrname
+      global commandctl hostname usrname passwd mapIpToUsrname
 
-  #hide the paaword clear text 
-  .top.passwd configure -show *
+      #hide the paaword clear text 
+      .top.passwd configure -show *
 
-  #fetch the windows size
-  set winheight [winfo  screenheight .]
-  set winwidth  [winfo  screenwidth .]
+      #fetch the windows size
+      set winheight [winfo  screenheight .]
+      set winwidth  [winfo  screenwidth .]
 
-  # for xfreerdp ctrl + alt + enter to toggle fullscreen
-  try {
-        #write to db
-	set hostname [string trim $hostname]
-	set usrname  [string trim $usrname]
-        
-	if { [string length $hostname] > 0 && [string length $usrname] > 0 } {
-	     puts stderr "hostname:$hostname,usrname:$usrname is not empty! write to db"
-	     reloadThenWritedb_withlock "$hostname" "$usrname"
-	     #use the below command to check whether all paras is valid ?
-	     #but store the hostname&usrname firstly for the case user close the remote
-	     #desktop directly,it will lose the chance for storing
-	
-	}
+      # for xfreerdp ctrl + alt + enter to toggle fullscreen
+      try {
+            #write to db
+            set hostname [string trim $hostname]
+            set usrname  [string trim $usrname]
+                  
+            if { [string length $hostname] > 0 && [string length $usrname] > 0 } {
+                  puts stderr "hostname:$hostname,usrname:$usrname is not empty! write to db"
+                  reloadThenWritedb_withlock  $hostname  $usrname
+                  #use the below command to check whether all paras is valid ?
+                  #but store the hostname&usrname firstly for the case user close the remote
+                  #desktop directly,it will lose the chance for storing
+               }
 
-        #exec $commandctl /w:$winwidth /h:$winheight /toggle-fullscreen  /cert-ignore  /v:$hostname /u:$usrname /p:$passwd
-        exec $commandctl /f /toggle-fullscreen  /cert-ignore  /v:$hostname /u:$usrname /p:$passwd
-      
-      } on {error} {} {
-
-        #extract keyword to judge whether exited normally
-        set isNormalExit [string first "Closed from X11" $::errorInfo]
-        set isIpInvalid [string first "unable to connect to" $::errorInfo]
-        set isPwdInvalid [string first "denied" $::errorInfo]
-        set isInvalid [string first "connection failure" $::errorInfo]
-
-	puts stderr "isNormalExit:$isNormalExit,isIpInvalid:$isIpInvalid,isPwdInvalid:$isPwdInvalid,isInvalid:$inInvalid"
-
-	if {$isNormalExit == -1 } {
+            #exec $commandctl /w:$winwidth /h:$winheight /toggle-fullscreen  /cert-ignore  /v:$hostname /u:$usrname /p:$passwd
+            #audio-mode:1 is just my needed ,leave audio at remote machine
+            exec $commandctl /f /toggle-fullscreen /audio-mode:1 /cert-ignore  /v:$hostname /u:$usrname /p:$passwd
           
-	  #see the password is valid ??
-	  .top.passwd configure -show ""
-	  focus .top.passwd
-        
-	  tk_messageBox -title "remote Access  Error $isNormalExit" -message "$usrname:$passwd@$hostname,Are you OK ?" -detail $::errorInfo	  
-           
-         }
+          } on {error} {} {
 
-        #at here will lose some chance for storing
-	if { $isNormalExit == -1 && $isIpInvalid == -1 && $isPwdInvalid == -1 && $inInvalid == -1 } {
-	
-	}
-       
-      }
+            #extract keyword to judge whether exited normally
+            set isNormalExit [string first "Closed from X11" $::errorInfo]
+            set isIpInvalid [string first "unable to connect to" $::errorInfo]
+            set isPwdInvalid [string first "denied" $::errorInfo]
+            set isInvalid [string first "connection failure" $::errorInfo]
+
+           puts stderr "isNormalExit:$isNormalExit,isIpInvalid:$isIpInvalid,isPwdInvalid:$isPwdInvalid,isInvalid:$isInvalid"
+
+           if {$isNormalExit == -1 } {
+              
+              #see the password is valid ??
+              .top.passwd configure -show ""
+              focus .top.passwd
+                
+              tk_messageBox -title "remote Access  Error $isNormalExit" -message "$usrname:$passwd@$hostname,Are you OK ?" -detail $::errorInfo	  
+              
+            }
+
+            #at here will lose some chance for storing
+           if { $isNormalExit == -1 && $isIpInvalid == -1 && $isPwdInvalid == -1 && $isInvalid == -1 } {
+      
+          }    
+    }
 }
 
 
 
 #*******************************lib methods***************************
 proc lockfile {} {
- global lockfilename lockfid
- if { [file exists $lockfilename] } {
-   puts stderr "$lockfilename exist,may be race condition or exception,please check!"
- } else {
-   puts stderr "$lockfilename does not exist! OK!"
- }
- 
- #empty key/value object 
- array set filestat ""
- 
- set older_seconds 6
- while { [catch { set lockfid [open $lockfilename {WRONLY CREAT EXCL }] } err]} {
-    file stat $lockfilename filestat
-    puts stderr "wait to lock,filecreatetime:[clock format $filestat(ctime)], now:[clock format [clock seconds]] . err:$err"
-    puts stderr "delta:[clock seconds] - $filestat(ctime).Threshold:$older_seconds,Delta:[expr [clock seconds] - $filestat(ctime)]"
+  global lockfilename lockfid
+  if { [file exists $lockfilename] } {
+    puts stderr "$lockfilename exist,may be race condition or exception,please check!"
+  } else {
+    puts stderr "$lockfilename does not exist! OK!"
+  }
+  
+  #empty key/value object 
+  array set filestat ""
+  
+  set older_seconds 6
+  while { [catch { set lockfid [open $lockfilename {WRONLY CREAT EXCL }] } err]} {
+      file stat $lockfilename filestat
+      puts stderr "wait to lock,filecreatetime:[clock format $filestat(ctime)], now:[clock format [clock seconds]] . err:$err"
+      puts stderr "delta:[clock seconds] - $filestat(ctime).Threshold:$older_seconds,Delta:[expr [clock seconds] - $filestat(ctime)]"
 
-    if { [expr [clock seconds] - $filestat(ctime)] > $older_seconds } {
-       puts stderr "the current lock file is too older!Maybe Exception,delete it in force!"
-       file delete -force $lockfilename
-       continue
-     }
+      if { [expr [clock seconds] - $filestat(ctime)] > $older_seconds } {
+        puts stderr "the current lock file is too older!Maybe Exception,delete it in force!"
+        file delete -force $lockfilename
+        continue
+      }
 
-     #wait because race condition
-     after 1000
-    }
+      #wait because race condition
+      after 1000
+      }
  }
 
 
 proc unlockfile {} {
-global lockfilename lockfid
+	global lockfilename lockfid
 
-if { [catch { close $lockfid } err] } {
-   puts stderr "close file exception,$err"
- }
+	if { [catch { close $lockfid } err] } {
+	   puts stderr "close file exception,$err"
+	 }
 
-if { [catch { file delete $lockfilename } err] } {
-   puts stderr "remove file exception,$err"
- }
+	if { [catch { file delete $lockfilename } err] } {
+	   puts stderr "remove file exception,$err"
+	 }
 }
 
 
 proc readdbfile {} {
-global dbfile mapIpToUsrname
-puts stderr "readdbfile, $dbfile"
+	global dbfile mapIpToUsrname
+	puts stderr "readdbfile, $dbfile"
 
-if { [catch { source $dbfile } err] } {
-   puts stderr "readdbfile exception,$err" 
- }
+	if { [catch { source $dbfile } err] } {
+	   puts stderr "readdbfile exception,$err" 
+	 }
 
- puts stderr [format "read size:%d" [dict size $mapIpToUsrname]]
+	 puts stderr [format "read size:%d" [dict size $mapIpToUsrname]]
 }
 
 proc writedbfile {} {
-global dbfile mapIpToUsrname
-puts stderr "writedbfile, $dbfile"
+	global dbfile mapIpToUsrname
+	puts stderr "writedbfile, $dbfile"
 
-if { [catch { set writefid [open $dbfile {WRONLY CREAT TRUNC}] } filerr ] == 0 } {
+	if { [catch { set writefid [open $dbfile {WRONLY CREAT TRUNC}] } filerr ] == 0 } {
 
-  puts "write db begin!"
-  puts $writefid "#!/usr/bin/tclsh"
-  puts $writefid "#login data mapping ip to usrname db!"
-  puts $writefid ""
+	  puts "write db begin!"
+	  puts $writefid "#!/usr/bin/tclsh"
+	  puts $writefid "#login data mapping ip to usrname db!"
+	  puts $writefid ""
 
-  puts $writefid "global mapIpToUsrname"
-  puts $writefid ""
+	  puts $writefid "global mapIpToUsrname"
+	  puts $writefid ""
 
-  puts [format "write size:%d" [dict size $mapIpToUsrname] ]
+	  puts [format "write size:%d" [dict size $mapIpToUsrname] ]
 
-  dict for { key value } $mapIpToUsrname {
-     #the difference of dictionaryValue and dictionaryVariable
-     #use format to grouping arguments
-     puts $writefid [format "dict set mapIpToUsrname {%s} {%s}" $key $value]
-   }
+	  dict for { key value } $mapIpToUsrname {
+		 #the difference of dictionaryValue and dictionaryVariable
+		 #use format to grouping arguments
+		 puts $writefid [format "dict set mapIpToUsrname {%s} {%s}" $key $value]
+	   }
 
-  catch { close $writefid }
+	  catch { close $writefid }
 
-  puts "write db end!"
- } else {
-  puts stderr "writedbfile exception,$dbfile,$filerr"
- }
+	  puts "write db end!"
+	 } else {
+	  puts stderr "writedbfile exception,$dbfile,$filerr"
+	 }
 
 }
 
@@ -251,23 +250,24 @@ proc writedb_withlock {} {
 
 proc reloadThenWritedb_withlock {hostname usrname} {
 
- global mapIpToUsrname
+  global mapIpToUsrname
 
- try {
- 
-   #to keep atomic 
-   lockfile
-   #read again to update
-   readdbfile
+  try {
+  
+    #to keep atomic 
+    lockfile
+    #read again to update
+    readdbfile
 
-   dict set mapIpToUsrname "$hostname" "$usrname"
-   puts [format  "insert len:%d" [dict size $mapIpToUsrname]]
+    dict set mapIpToUsrname "$hostname" "$usrname"
+    puts [format  "insert len:%d" [dict size $mapIpToUsrname]]
 
-   writedbfile
- } finally {
- 
-  unlockfile
- }
+    writedbfile
+  } finally {
+  
+    unlockfile
+
+  }
 
 }
 
