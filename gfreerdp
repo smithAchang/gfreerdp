@@ -1,7 +1,13 @@
 #!/usr/bin/wish
+#
+# output log to syslog
+exec logger "begin"
+exec logger [clock milliseconds]
 
 global commandctl hostname usrname passwd
 set commandctl "/usr/bin/xfreerdp"
+
+
 
 #for storage
 global lockfilename lockfid dbfile mapIpToUsrname
@@ -14,6 +20,8 @@ set mapIpToUsrname [dict create]
 
 
 proc screen {} {
+  #when change the value,the input field will synchrony change 
+  global hostname usrname passwd
 
   frame .top -borderwidth 10
   pack .top -fill x	
@@ -24,12 +32,13 @@ proc screen {} {
   label .top.labelhost -text "Hostname:" -font bold
   entry .top.hostname -width 40 -relief sunken -bd 2 -textvariable hostname
   #insert default template value
-  .top.hostname insert 0 $hostname
+  #.top.hostname insert 0 $hostname
+  .top.hostname icursor [string len $hostname]
   
   set usrname "Administrator"
   label .top.labelusr -text "Username:" -font bold
   entry .top.username -width 40 -relief sunken -bd 2 -textvariable usrname
-  .top.username insert 0 $usrname
+  #.top.username insert 0 $usrname
   
   label .top.labelpass -text "Password:" -font bold
   #entry .top.passwd -width 40 -relief sunken -bd 2 -show * -textvariable passwd
@@ -44,6 +53,8 @@ proc screen {} {
   pack .top.labelusr .top.username -fill x
   pack .top.labelpass .top.passwd -fill x
   pack .top.connect -fill x
+
+  wm title . "Linux Jumper"
 
   #focus must input field
   focus .top.hostname
@@ -69,10 +80,9 @@ proc hostnamechange {} {
 
           if { [string len $value] > 0 } {
           
-          .top.username delete 0 [string len $usrname]
-          .top.username insert 0 $value
+               set usrname $value
 
-          focus .top.passwd
+               focus .top.passwd
 
           }
     }  
@@ -271,9 +281,25 @@ proc reloadThenWritedb_withlock {hostname usrname} {
 
 }
 
+proc delayproc { delaytime } {
+  
+  puts "linux jumper some actions,delay:$delaytime"
+}
+
 #***********************main entry*************************
 readdb_withlock
 
 #
 screen
+after idle {puts "hello linux jumper"}
+
+
+for {set delay 100} { $delay < 4000} { incr delay 100} {
+
+  after $delay delayproc $delay
+
+}
+
+exec logger "end"
+exec logger [clock milliseconds]
 
