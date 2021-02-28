@@ -6,11 +6,18 @@
 # chilid function
 cpJumperResources () {
   su $1 -s "/bin/bash" -c "mkdir -p ~/.config/openbox"
-  cp -f ~/jumper/gfreerdp ~/jumper/menu.xml  /home/$1/.config/openbox/
-  echo "wish ~/.config/openbox/gfreerdp" > /home/$1/.config/openbox/autostart.sh
-  chmod +x /home/$1/.config/openbox/autostart.sh  /home/$1/.config/openbox/gfreerdp
+  cp -f ~/jumper/gfreerdp /etc/xdg/openbox/{autostart,menu.xml}  /home/$1/.config/openbox/
+  echo "wish ~/.config/openbox/gfreerdp &" >> /home/$1/.config/openbox/autostart
+  chmod +x /home/$1/.config/openbox/{autostart,gfreerdp}
+
+  # right click menu
+  del_first_line=`sed -n '/label="Terminal/=' /home/$1/.config/openbox/menu.xml`
+  del_last_line=`sed -n '/label="Restart"/=' /home/$1/.config/openbox/menu.xml`
+  let del_last_line=$del_last_line-1
+  sed -i "${del_first_line},${del_last_line}d" /home/$1/.config/openbox/menu.xml
+
   # restrict the common user privileges
-  chown root /home/$1/.bashrc /home/$1/.profile
+  chown root:root /home/$1/{.bashrc,.profile}
 }
 
 # resolve links - $0 may be a softlink
@@ -45,8 +52,8 @@ mkdir -p ~/jumper
 cd ~/jumper
 
 
-echo "get ubuntu jumper resources..."
-curl -O $OFFLINE_DEBS_JUMPER_URL/gfreerdp -O $OFFLINE_DEBS_JUMPER_URL/menu.xml -O $OFFLINE_DEBS_JUMPER_URL/sources.list -O $OFFLINE_DEBS_JUMPER_URL/jumper-public-key.sec
+echo "get ubuntu jumper resources and repo mirror site template..."
+curl -O $OFFLINE_DEBS_JUMPER_URL/gfreerdp -O $OFFLINE_DEBS_JUMPER_URL/sources.list -O $OFFLINE_DEBS_JUMPER_URL/jumper-public-key.sec
 
 echo "set vi keyboard setting..."
 echo "set nocompatible" >> /etc/vim/vimrc.tiny
@@ -77,17 +84,17 @@ sed -i "/^Policy=/cPolicy=UBC" /etc/xrdp/sesman.ini
 delete_line_begin=`sed -n '/\[X11rdp\]/=' /etc/xrdp/xrdp.ini`
 
 sed -i "$delete_line_begin,\$d" /etc/xrdp/xrdp.ini
-sed -i "/^username=/cusername=askjumper" /etc/xrdp/xrdp.ini
+sed -i "/^username=/cusername=askgo" /etc/xrdp/xrdp.ini
 sed -i "/^password=/cpassword=askjumper" /etc/xrdp/xrdp.ini
 
 
 echo "add remote desktop user,you should input jumper as default password..."
-adduser jumper --shell /usr/sbin/nologin
+adduser go --shell /usr/sbin/nologin
 
 echo "add openbox desktop config..."
-if [ -r /home/jumper/ ];then
+if [ -r /home/go/ ];then
   echo "add openbox desktop to common jumper user..."
-  cpJumperResources jumper
+  cpJumperResources go
 fi
 
 echo "use special system mirror..."

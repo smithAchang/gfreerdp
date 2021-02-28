@@ -2,6 +2,14 @@
 # required: before excuted,please use sudo su to switch to root user!
 # required: curl && gpg shell scripts
 
+# user must be root!
+usertest=`whoami`
+
+if [ $usertest != "root" ];then
+  echo "you must use root to run this script!use 'sudo su' to switch to root user!"
+  exit 1
+fi
+
 echo "use key sign..."
 
 if [ ! -r jumper-private-key.sec ] ; then
