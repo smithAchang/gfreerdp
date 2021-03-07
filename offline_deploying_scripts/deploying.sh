@@ -7,7 +7,7 @@
 cpJumperResources () {
   su $1 -s "/bin/bash" -c "mkdir -p ~/.config/openbox"
   cp -f ~/jumper/gfreerdp /etc/xdg/openbox/{autostart,menu.xml}  /home/$1/.config/openbox/
-  echo "wish ~/.config/openbox/gfreerdp &" >> /home/$1/.config/openbox/autostart
+  echo "/usr/bin/wish ~/.config/openbox/gfreerdp &" >> /home/$1/.config/openbox/autostart
   chmod +x /home/$1/.config/openbox/{autostart,gfreerdp}
 
   # right click menu

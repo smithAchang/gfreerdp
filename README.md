@@ -8,3 +8,7 @@ V1.0
 
 V1.2
 + add read local db feature for supporting auto input
+
+V1.3
++ providing auto deploying jumper env script and making offline debs repo script 
+>> scripts has tested in Ubuntu 18.04 Server
